@@ -116,9 +116,7 @@ class ShortHandler(BaseHandler):
             return self.finish({'status_code': 500, 'status_txt': 'INVALID_ARG_DOMAIN', 'data': []})
 
         # Generate a unique hash, assemble short url and store result in Redis.
-        url_hash = utils.generate_hash(self.application.redis,
-                                       self.settings['redis_namespace'],
-                                       self.settings['hash_salt'])
+        url_hash = utils.get_hash_from_map(long_url)
         short_url = 'http://' + domain + '/' + url_hash
         self.store_url(url_hash, long_url)
 

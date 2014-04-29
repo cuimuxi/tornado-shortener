@@ -12,6 +12,7 @@ import re
 import urllib
 import urlparse
 import time
+import hashlib
 from hashids import Hashids
 
 
@@ -75,3 +76,37 @@ def get_hash_from_url(short_url):
     p = urlparse.urlparse(short_url).path
     assert p[0:1] == '/'
     return p.replace('/', '')
+
+def hash_dict():
+    chars = (
+        "a","b","c","d","e","f","g","h",
+        "i","j","k","l","m","n","o","p",
+        "q","r","s","t","u","v","w","x",
+        "y","z","0","1","2","3","4","5",
+        "6","7","8","9","A","B","C","D",
+        "E","F","G","H","I","J","K","L",
+        "M","N","O","P","Q","R","S","T",
+        "U","V","W","X","Y","Z",
+        )
+
+    return chars
+
+def get_hash_from_map(origin):
+    """
+    You can change this hash string .
+    """
+    key = "718d26efb2652ce50656fa3046d73960"
+    hex = hashlib.md5(key + origin).hexdigest()
+    res = [0 for i in range(4)]
+    chars = hash_dict()
+
+    for i in range(4):
+        hexint = 0x3FFFFFFF & int("0x" + hex[i * 8: i*8+8], 16)
+        outChars = ""
+        for j in range(6):
+            index = 0x0000003D & hexint
+            outChars += chars[index]
+            hexint = hexint >> 5
+        res[i] = outChars
+    print res
+    return res[0]
