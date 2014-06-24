@@ -108,5 +108,6 @@ def get_hash_from_map(origin):
             outChars += chars[index]
             hexint = hexint >> 5
         res[i] = outChars
-    print res
-    return res[0]
+    url_length = len(str(origin))
+    position = url_length % 4
+    return res[position]
