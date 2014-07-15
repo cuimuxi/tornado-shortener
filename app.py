@@ -10,13 +10,13 @@
 # Import modules
 import logging
 import tornado, tornado.options, tornado.ioloop
-from handler import RedirectHandler, ExpandHandler, ShortHandler
+from handler import RedirectHandler, ExpandHandler, ShortHandler, ModifyHandler,IndexHandler
 import redis
 
 
 # Define command line parameters.
 tornado.options.define("port", type=int, default=8888, help="Listen on this port")
-tornado.options.define("domain", type=str, default="localhost:8888", help="The default domain for shortening URLs")
+tornado.options.define("domain", type=str, default="127.0.0.1:8888", help="The default domain for shortening URLs")
 tornado.options.define("localhostonly", type=bool, default=False, help="Listen on localhost only")
 tornado.options.define("salt", type=str, default='', help="A string influencing the generated hashes")
 tornado.options.define("redis_namespace", type=str, default='SHORT:', help="The redis namespace used for all keys")
@@ -42,17 +42,22 @@ class Application(tornado.web.Application):
                  redis_port=6379, redis_db=0, ttl=0):
         # Define routes.
         handlers = [
+            (r"/", IndexHandler),
+            (r"/modify/$", ModifyHandler),
+            (r"/modify$", ModifyHandler),
             (r"/expand/$", ExpandHandler),
             (r"/expand", ExpandHandler),
             (r"/shorten/$", ShortHandler),
             (r"/shorten$", ShortHandler),
             (r"/([a-zA-Z0-9]*)/$", RedirectHandler),
             (r"/([a-zA-Z0-9]*)$", RedirectHandler),
+
         ]
 
         # Configure application settings.
         settings = dict(
             gzip = True,
+            debug = True,
             default_domain = default_domain,
             hash_salt = hash_salt,
             redis_namespace = redis_namespace,

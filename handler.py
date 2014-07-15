@@ -10,6 +10,7 @@
 # Import modules
 import logging
 import time
+from urlparse import urlparse
 from tornado.web import RequestHandler
 from tornado.web import HTTPError
 import utils
@@ -25,7 +26,9 @@ class BaseHandler(RequestHandler):
         Stores a long URL for the given url hash.
         """
         k = self.settings['redis_namespace'] + 'URLS:' + url_hash
-        self.application.redis.set(k, long_url)
+        result = self.application.redis.set(k, long_url)
+        print result
+
         if self.settings['ttl']:
             self.application.redis.expireat(k, int(time.time()) + self.settings['ttl'] * 24 * 60 * 60)
 
@@ -71,14 +74,19 @@ class ExpandHandler(BaseHandler):
             return self.finish({'status_code': 500, 'status_txt': 'MISSING_ARG_SHORTURL_OR_HASH', 'data': []})
         if short_url:
             try:
-                url_hash_from_url = utils.get_hash_from_url(short_url)
+                parse_result = urlparse(short_url)
+                url_hash = parse_result.path.replace('/', '')
             except:
-                # TODO: Response differs from bitly
-                return self.finish({'status_code': 500, 'status_txt': 'INVALID_ARG_SHORTURL', 'data': []})
-            if url_hash and url_hash != url_hash_from_url:
-                # TODO: Response differs from bitly
-                return self.finish({'status_code': 500, 'status_txt': 'ARGS_DONT_MATCH', 'data': []})
-            else: url_hash = url_hash_from_url
+                 return self.finish({'status_code': 500, 'status_txt': 'INVALID_ARG_SHORTURL', 'data': []})
+            #try:
+            #    url_hash_from_url = utils.get_hash_from_url(short_url)
+            #except:
+            #    # TODO: Response differs from bitly
+            #    return self.finish({'status_code': 500, 'status_txt': 'INVALID_ARG_SHORTURL', 'data': []})
+            #if url_hash and url_hash != url_hash_from_url:
+            #    # TODO: Response differs from bitly
+            #    return self.finish({'status_code': 500, 'status_txt': 'ARGS_DONT_MATCH', 'data': []})
+            #else: url_hash = url_hash_from_url
 
         long_url = self.load_url(url_hash)
         if not long_url:
@@ -117,9 +125,43 @@ class ShortHandler(BaseHandler):
 
         # Generate a unique hash, assemble short url and store result in Redis.
         url_hash = utils.get_hash_from_map(long_url)
+        #check exist hash if do some customize
+        is_exist = self.load_url(url_hash)
+        if is_exist:
+            url_hash = utils.generate_hash(self.application.redis,
+                                           self.settings['redis_namespace'],
+                                           self.settings['hash_salt'])
+
         short_url = 'http://' + domain + '/' + url_hash
         self.store_url(url_hash, long_url)
 
         # Return success response.
         data = {'long_url': long_url, 'url': short_url, 'hash': url_hash, 'global_hash': url_hash}
         self.finish({'status_code': 200, 'status_txt': 'OK', 'data': data})
+
+
+class ModifyHandler(BaseHandler):
+
+    #customize  hash to special long url
+    def get(self):
+        long_url = self.get_argument('longUrl', None)
+        url_hash = self.get_argument('hash', None)
+
+        try:
+            long_url = utils.normalize_url(long_url)
+            assert utils.validate_url(long_url) == True
+        except:
+            logging.info('Wrong URL', exc_info=1)
+            return self.finish({'status_code': 500, 'status_txt': 'INVALID_URI', 'data': []})
+
+        domain = self.get_argument('domain', self.settings['default_domain'])
+        short_url = 'http://' + domain + '/' + url_hash
+        self.store_url(url_hash, long_url)
+
+        print 'xxxxx'
+        data = {'long_url': long_url, 'url': short_url, 'hash': url_hash, 'global_hash': url_hash}
+        self.finish({'status_code': 200, 'status_txt': 'OK', 'data': data})
+
+class IndexHandler(BaseHandler):
+    def get(self):
+        self.redirect('http://wdianpu.com',  permanent=True)
